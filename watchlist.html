@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REEL — My Watchlist</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to content</a>
+<header id="site-header" class="site-header"></header>
+
+<main id="main" class="wrap">
+  <div class="section-head" style="margin-top:32px;">
+    <div>
+      <span class="eyebrow">Saved on this device</span>
+      <h2>My Watchlist</h2>
+    </div>
+  </div>
+  <div class="grid" id="wl-grid"></div>
+</main>
+
+<footer id="site-footer" class="site-footer"></footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+  renderChrome("watchlist");
+  const grid = document.getElementById("wl-grid");
+  const list = Watchlist.all();
+  if (!list.length) {
+    grid.innerHTML = `<div class="state-msg">
+      <div class="display">Nothing saved yet</div>
+      <div>Tap the + on any movie card to add it here. Your list is saved in this browser only.</div>
+    </div>`;
+  } else {
+    renderShelf(grid, list);
+  }
+</script>
+</body>
+</html>

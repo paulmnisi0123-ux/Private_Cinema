@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REEL — Free Movie Guide & Public Domain Streaming</title>
+<meta name="description" content="Browse movies and shows, find where to watch them legally, and stream public-domain classics free.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to content</a>
+<header id="site-header" class="site-header"></header>
+
+<main id="main" class="wrap">
+
+  <section class="marquee">
+    <h1>Every movie.<br><em>Free</em> to browse.</h1>
+    <p>Search, discover, and build a watchlist across every film ever made — plus a growing library of public-domain classics you can stream right here, free, forever.</p>
+    <div class="cta-row">
+      <a href="archive.html" class="btn btn-gold">▶ Start streaming free films</a>
+      <a href="watchlist.html" class="btn btn-outline">My Watchlist</a>
+    </div>
+  </section>
+
+  <div class="chip-row" id="genre-chips" aria-label="Filter by genre"></div>
+
+  <div class="sprocket-divider">
+    <div class="line"></div>
+    <div class="holes"><span></span><span></span><span></span></div>
+    <div class="line"></div>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Now trending</span>
+      <h2>Trending this week</h2>
+    </div>
+  </div>
+  <div class="shelf" id="trending-shelf"><div class="state-msg"><div class="spinner"></div></div></div>
+
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Free right now</span>
+      <h2>Stream free from the Archive</h2>
+    </div>
+    <a href="archive.html">See all →</a>
+  </div>
+  <div class="grid" id="pd-shelf"></div>
+
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Top rated</span>
+      <h2 id="genre-title">Top rated all-time</h2>
+    </div>
+  </div>
+  <div class="grid" id="genre-shelf"><div class="state-msg"><div class="spinner"></div></div></div>
+
+</main>
+
+<footer id="site-footer" class="site-footer"></footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+  renderChrome("home");
+
+  // Public domain teaser (first 6, no API needed)
+  const pdShelf = document.getElementById("pd-shelf");
+  renderShelf(
+    pdShelf,
+    PUBLIC_DOMAIN_LIBRARY.slice(0, 6).map((m) => ({
+      id: `pd-${m.ia}`,
+      title: m.title,
+      year: m.year,
+      poster_path: null,
+    })),
+    { pdBadge: true }
+  );
+  // fix links to point at archive player instead of movie.html
+  [...pdShelf.querySelectorAll("a")].forEach((a, i) => {
+    a.href = `archive.html?title=${encodeURIComponent(PUBLIC_DOMAIN_LIBRARY[i].ia)}`;
+  });
+
+  const trendingShelf = document.getElementById("trending-shelf");
+  const genreShelf = document.getElementById("genre-shelf");
+  const genreChips = document.getElementById("genre-chips");
+  const genreTitle = document.getElementById("genre-title");
+
+  async function loadHome() {
+    try {
+      const trending = await tmdb("/trending/movie/week");
+      renderShelf(trendingShelf, trending.results);
+    } catch (e) {
+      showError(trendingShelf, e.message);
+    }
+
+    try {
+      const genres = await tmdb("/genre/movie/list");
+      genreChips.innerHTML = "";
+      const allChip = makeChip("All", null, true);
+      genreChips.appendChild(allChip);
+      genres.genres.forEach((g) => genreChips.appendChild(makeChip(g.name, g.id, false)));
+
+      async function loadGenre(id, name) {
+        genreTitle.textContent = name;
+        showLoading(genreShelf, `Loading ${name}…`);
+        try {
+          const data = id
+            ? await tmdb("/discover/movie", { with_genres: id, sort_by: "popularity.desc" })
+            : await tmdb("/movie/top_rated");
+          renderShelf(genreShelf, data.results);
+        } catch (e) {
+          showError(genreShelf, e.message);
+        }
+      }
+
+      function makeChip(label, id, active) {
+        const btn = document.createElement("button");
+        btn.className = "chip" + (active ? " active" : "");
+        btn.textContent = label;
+        btn.addEventListener("click", () => {
+          [...genreChips.children].forEach((c) => c.classList.remove("active"));
+          btn.classList.add("active");
+          loadGenre(id, id ? label : "Top rated all-time");
+        });
+        return btn;
+      }
+
+      loadGenre(null, "Top rated all-time");
+    } catch (e) {
+      showError(genreShelf, e.message);
+    }
+  }
+
+  loadHome();
+</script>
+</body>
+</html>

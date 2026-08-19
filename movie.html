@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REEL — Movie</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to content</a>
+<header id="site-header" class="site-header"></header>
+
+<main id="main" class="wrap" style="padding-bottom: 60px;">
+  <div id="content"><div class="state-msg"><div class="spinner"></div><div>Loading…</div></div></div>
+</main>
+
+<footer id="site-footer" class="site-footer"></footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+  renderChrome();
+  const content = document.getElementById("content");
+  const id = qs("id");
+
+  async function load() {
+    if (!id) {
+      showError(content, "No movie specified.");
+      return;
+    }
+    try {
+      const movie = await tmdb(`/movie/${id}`, { append_to_response: "credits,videos,watch/providers" });
+      render(movie);
+    } catch (e) {
+      showError(content, e.message);
+    }
+  }
+
+  function render(m) {
+    const backdrop = posterUrl(m.backdrop_path, CONFIG.IMG_BASE_LARGE);
+    const poster = posterUrl(m.poster_path);
+    const trailer = (m.videos?.results || []).find(
+      (v) => v.site === "YouTube" && v.type === "Trailer"
+    ) || (m.videos?.results || [])[0];
+    const providers = m["watch/providers"]?.results?.US;
+    const inList = Watchlist.has(m.id);
+    const isPD = PUBLIC_DOMAIN_LIBRARY.some((p) => p.tmdbId === m.id);
+    const pdMatch = PUBLIC_DOMAIN_LIBRARY.find((p) => p.tmdbId === m.id);
+
+    content.innerHTML = `
+      <div class="detail-hero">
+        ${backdrop
+          ? `<img class="backdrop" src="${backdrop}" alt="">`
+          : `<div class="backdrop-fallback"></div>`}
+      </div>
+      <div class="detail-content">
+        <div>
+          ${poster
+            ? `<img class="detail-poster" src="${poster}" alt="${escapeHtml(m.title)} poster">`
+            : `<div class="detail-poster no-poster" style="aspect-ratio:2/3">${escapeHtml(m.title)}</div>`}
+        </div>
+        <div class="detail-info">
+          <h1>${escapeHtml(m.title)}</h1>
+          ${m.tagline ? `<div class="tagline">"${escapeHtml(m.tagline)}"</div>` : ""}
+          <div class="detail-facts">
+            <span>📅 ${(m.release_date || "—").slice(0, 4)}</span>
+            <span>⏱ ${m.runtime ? m.runtime + " min" : "—"}</span>
+            <span>★ ${m.vote_average ? m.vote_average.toFixed(1) : "—"}</span>
+            <span>🎬 ${(m.genres || []).map((g) => g.name).join(", ") || "—"}</span>
+          </div>
+          <p class="overview">${escapeHtml(m.overview || "No synopsis available.")}</p>
+          <div class="action-row">
+            <button id="wl-btn" class="btn ${inList ? "btn-gold" : "btn-outline"}">
+              ${inList ? "✓ In your watchlist" : "+ Add to watchlist"}
+            </button>
+            ${isPD
+              ? `<a href="archive.html?title=${encodeURIComponent(pdMatch.ia)}" class="btn btn-gold">▶ Stream free now</a>`
+              : ""}
+          </div>
+        </div>
+      </div>
+
+      <div class="sprocket-divider"><div class="line"></div><div class="holes"><span></span><span></span><span></span></div><div class="line"></div></div>
+
+      ${trailer ? `
+        <div class="section-head"><h2>Trailer</h2></div>
+        <div class="trailer-embed">
+          <iframe src="https://www.youtube.com/embed/${trailer.key}" title="Trailer" allowfullscreen loading="lazy"></iframe>
+        </div>
+      ` : ""}
+
+      <div class="section-head"><h2>Where to watch</h2></div>
+      <div class="providers-box">
+        ${renderProviders(providers)}
+      </div>
+
+      ${m.credits?.cast?.length ? `
+        <div class="section-head"><h2>Cast</h2></div>
+        <div class="cast-row">
+          ${m.credits.cast.slice(0, 12).map((c) => `
+            <div class="cast-card">
+              ${c.profile_path
+                ? `<img class="headshot" src="${posterUrl(c.profile_path)}" alt="${escapeHtml(c.name)}" loading="lazy">`
+                : `<div class="headshot no-poster" style="display:flex;align-items:center;justify-content:center;font-size:10px;">${escapeHtml(c.name)}</div>`}
+              <div class="name">${escapeHtml(c.name)}</div>
+              <div class="character">${escapeHtml(c.character || "")}</div>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
+    `;
+
+    document.getElementById("wl-btn").addEventListener("click", () => {
+      const nowIn = Watchlist.toggle({
+        id: m.id,
+        title: m.title,
+        poster_path: m.poster_path,
+        release_date: m.release_date,
+        vote_average: m.vote_average,
+      });
+      const btn = document.getElementById("wl-btn");
+      btn.textContent = nowIn ? "✓ In your watchlist" : "+ Add to watchlist";
+      btn.className = "btn " + (nowIn ? "btn-gold" : "btn-outline");
+    });
+  }
+
+  function renderProviders(p) {
+    if (!p) return `<p style="color:var(--text-dim); margin:0;">No streaming info available for this title in your region yet — try checking JustWatch directly.</p>`;
+    const groups = [
+      ["Stream", p.flatrate],
+      ["Rent", p.rent],
+      ["Buy", p.buy],
+    ].filter(([, arr]) => arr && arr.length);
+    if (!groups.length) return `<p style="color:var(--text-dim); margin:0;">Not currently available on a tracked streaming service in your region.</p>`;
+    return groups.map(([label, arr]) => `
+      <div style="margin-bottom:10px;">
+        <div class="mono" style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em;">${label}</div>
+        <div class="provider-list">
+          ${arr.map((s) => `<img src="${posterUrl(s.logo_path)}" alt="${escapeHtml(s.provider_name)}" title="${escapeHtml(s.provider_name)}">`).join("")}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  load();
+</script>
+</body>
+</html>

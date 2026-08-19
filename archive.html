@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REEL — Free Archive (Public Domain Streaming)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to content</a>
+<header id="site-header" class="site-header"></header>
+
+<main id="main" class="wrap">
+
+  <div class="section-head" style="margin-top:32px;">
+    <div>
+      <span class="eyebrow">100% legal, 100% free</span>
+      <h2>The Free Archive</h2>
+    </div>
+  </div>
+  <p class="pd-hero-note">
+    Every title below is in the <strong>public domain</strong> — its copyright has expired, so it can be streamed
+    freely, forever. Playback is powered by the <a href="https://archive.org" target="_blank" rel="noopener" style="color:var(--gold)">Internet Archive</a>,
+    a non-profit digital library. No account, no ads, no catch.
+  </p>
+
+  <div id="player-section" style="display:none;">
+    <div class="section-head"><h2 id="now-playing-title">Now playing</h2></div>
+    <div class="pd-player" id="pd-player"></div>
+  </div>
+
+  <div class="section-head">
+    <h2>Browse the library</h2>
+  </div>
+  <div class="grid" id="pd-grid"></div>
+
+</main>
+
+<footer id="site-footer" class="site-footer"></footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+  renderChrome("archive");
+
+  const grid = document.getElementById("pd-grid");
+  const playerSection = document.getElementById("player-section");
+  const player = document.getElementById("pd-player");
+  const nowPlayingTitle = document.getElementById("now-playing-title");
+
+  function playTitle(entry) {
+    nowPlayingTitle.textContent = `Now playing — ${entry.title} (${entry.year})`;
+    player.innerHTML = `<iframe src="https://archive.org/embed/${entry.ia}" allowfullscreen title="${entry.title}"></iframe>`;
+    playerSection.style.display = "block";
+    playerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderGrid() {
+    grid.innerHTML = "";
+    PUBLIC_DOMAIN_LIBRARY.forEach((entry) => {
+      const card = document.createElement("button");
+      card.className = "card";
+      card.style.cssText = "text-align:left; border:1px solid var(--border); width:100%; background:var(--bg-elev); padding:0;";
+      card.innerHTML = `
+        <div class="poster-wrap">
+          <div class="no-poster">${entry.title}</div>
+          <span class="pd-badge">Free</span>
+        </div>
+        <div class="meta">
+          <div class="title">${entry.title}</div>
+          <div class="year">${entry.year}</div>
+        </div>
+      `;
+      card.addEventListener("click", () => playTitle(entry));
+      grid.appendChild(card);
+    });
+  }
+
+  renderGrid();
+
+  // deep-link support: archive.html?title=<ia-identifier>
+  const wanted = qs("title");
+  if (wanted) {
+    const entry = PUBLIC_DOMAIN_LIBRARY.find((e) => e.ia === wanted);
+    if (entry) playTitle(entry);
+  }
+</script>
+</body>
+</html>
